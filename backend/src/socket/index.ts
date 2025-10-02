@@ -312,6 +312,72 @@ export const initializeSocket = (io: Server) => {
       logger.info(`User ${userId} left channel ${channelId}`);
     });
 
+    // Handle DM messages
+    socket.on('dm:send', async (data) => {
+      try {
+        const { conversationId, content, attachments } = data;
+
+        // Verify user has access
+        const participant = await prisma.dMParticipant.findFirst({
+          where: {
+            conversationId,
+            userId,
+          },
+        });
+
+        if (!participant) {
+          socket.emit('error', { message: 'No access to this conversation' });
+          return;
+        }
+
+        // Create message
+        const message = await prisma.directMessage.create({
+          data: {
+            content,
+            senderId: userId,
+            conversationId,
+            attachments: attachments || null,
+          },
+          include: {
+            sender: {
+              select: {
+                id: true,
+                username: true,
+                firstName: true,
+                lastName: true,
+                avatar: true,
+              },
+            },
+          },
+        });
+
+        // Update conversation
+        await prisma.dMConversation.update({
+          where: { id: conversationId },
+          data: { updatedAt: new Date() },
+        });
+
+        // Get all participants
+        const participants = await prisma.dMParticipant.findMany({
+          where: { conversationId },
+          select: { userId: true },
+        });
+
+        // Emit to all participants
+        for (const p of participants) {
+          const socketId = await redisClient.get(`user:${p.userId}:socketId`);
+          if (socketId) {
+            io.to(socketId).emit('dm:new', { conversationId, message });
+          }
+        }
+
+        logger.info(`DM sent: ${message.id} in conversation ${conversationId}`);
+      } catch (error) {
+        logger.error('Socket dm:send error:', error);
+        socket.emit('error', { message: 'Failed to send DM' });
+      }
+    });
+
     // Handle disconnect
     socket.on('disconnect', async () => {
       logger.info(`User disconnected: ${userId}`);

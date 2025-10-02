@@ -8,6 +8,7 @@ import Sidebar from '../components/Sidebar';
 import MessageList from '../components/MessageList';
 import MessageInput from '../components/MessageInput';
 import DMView from '../components/DMView';
+import ThreadPanel from '../components/ThreadPanel';
 import CreateWorkspaceModal from '../components/CreateWorkspaceModal';
 
 export default function Dashboard() {
@@ -15,6 +16,7 @@ export default function Dashboard() {
   const { currentChannel } = useChannelStore();
   const { currentConversation } = useDMStore();
   const [showCreateWorkspace, setShowCreateWorkspace] = useState(false);
+  const [threadMessageId, setThreadMessageId] = useState<string | null>(null);
 
   useEffect(() => {
     if (token) {
@@ -94,14 +96,22 @@ export default function Dashboard() {
         <Sidebar />
 
         {/* Main content */}
-        <main className="flex-1 flex flex-col bg-white">
-          {currentConversation ? (
-            <DMView />
-          ) : (
-            <>
-              <MessageList />
-              <MessageInput />
-            </>
+        <main className="flex-1 flex bg-white">
+          <div className="flex-1 flex flex-col">
+            {currentConversation ? (
+              <DMView />
+            ) : (
+              <>
+                <MessageList onOpenThread={(messageId) => setThreadMessageId(messageId)} />
+                <MessageInput />
+              </>
+            )}
+          </div>
+          {threadMessageId && (
+            <ThreadPanel
+              messageId={threadMessageId}
+              onClose={() => setThreadMessageId(null)}
+            />
           )}
         </main>
       </div>

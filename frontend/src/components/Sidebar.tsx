@@ -5,6 +5,7 @@ import { useDMStore } from '../store/dmStore';
 import { api } from '../services/api';
 import { useQuery } from '@tanstack/react-query';
 import DMList from './DMList';
+import { ChannelSkeleton } from './Skeleton';
 
 export default function Sidebar() {
   const { currentWorkspace, setCurrentWorkspace } = useWorkspaceStore();
@@ -13,7 +14,7 @@ export default function Sidebar() {
   const [showCreateChannel, setShowCreateChannel] = useState(false);
   const [newChannelName, setNewChannelName] = useState('');
 
-  const { data: workspacesData } = useQuery({
+  const { data: workspacesData, isLoading: isLoadingWorkspaces } = useQuery({
     queryKey: ['workspaces'],
     queryFn: async () => {
       const res = await api.get('/workspaces');
@@ -21,7 +22,7 @@ export default function Sidebar() {
     },
   });
 
-  const { data: channelsData } = useQuery({
+  const { data: channelsData, isLoading: isLoadingChannels } = useQuery({
     queryKey: ['channels', currentWorkspace?.id],
     queryFn: async () => {
       if (!currentWorkspace) return [];
@@ -98,26 +99,30 @@ export default function Sidebar() {
           )}
 
           <div className="space-y-1">
-            {channelsData?.map((channel: any) => {
-              const unreadCount = 0; // TODO: Calculate unread count
-              return (
-                <button
-                  key={channel.id}
-                  onClick={() => {
-                    setCurrentChannel(channel);
-                    setCurrentConversation(null);
-                  }}
-                  className="w-full text-left px-2 py-1 rounded hover:bg-gray-800 text-sm flex items-center justify-between group"
-                >
-                  <span># {channel.name}</span>
-                  {unreadCount > 0 && (
-                    <span className="bg-red-500 text-white text-xs rounded-full px-2 py-0.5 min-w-[20px] text-center">
-                      {unreadCount > 99 ? '99+' : unreadCount}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
+            {isLoadingChannels ? (
+              <ChannelSkeleton />
+            ) : (
+              channelsData?.map((channel: any) => {
+                const unreadCount = 0; // TODO: Calculate unread count
+                return (
+                  <button
+                    key={channel.id}
+                    onClick={() => {
+                      setCurrentChannel(channel);
+                      setCurrentConversation(null);
+                    }}
+                    className="w-full text-left px-2 py-1 rounded hover:bg-gray-800 text-sm flex items-center justify-between group"
+                  >
+                    <span># {channel.name}</span>
+                    {unreadCount > 0 && (
+                      <span className="bg-red-500 text-white text-xs rounded-full px-2 py-0.5 min-w-[20px] text-center">
+                        {unreadCount > 99 ? '99+' : unreadCount}
+                      </span>
+                    )}
+                  </button>
+                );
+              })
+            )}
           </div>
         </div>
 

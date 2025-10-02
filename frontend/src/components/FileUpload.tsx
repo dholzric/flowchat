@@ -49,10 +49,14 @@ export default function FileUpload({ onUploadComplete }: FileUploadProps) {
         type="button"
         onClick={() => fileInputRef.current?.click()}
         disabled={uploading}
-        className="p-2 text-gray-500 hover:text-gray-700 disabled:opacity-50"
-        title="Attach file"
+        className="p-2 text-gray-500 hover:text-gray-700 disabled:opacity-50 relative"
+        title={uploading ? 'Uploading...' : 'Attach file'}
       >
-        {uploading ? '⏳' : '📎'}
+        {uploading ? (
+          <span className="inline-block animate-spin">⏳</span>
+        ) : (
+          '📎'
+        )}
       </button>
     </>
   );

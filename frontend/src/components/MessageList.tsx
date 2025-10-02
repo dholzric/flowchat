@@ -1,20 +1,26 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useChannelStore } from '../store/channelStore';
 import { useMessageStore } from '../store/messageStore';
 import { api } from '../services/api';
 import { useQuery } from '@tanstack/react-query';
 import { socketService } from '../services/socket';
 import MessageReactions from './MessageReactions';
+import MessageActions from './MessageActions';
 import { renderMentionedText } from '../utils/mentions';
+import { MessageSkeleton } from './Skeleton';
 
-export default function MessageList() {
+interface MessageListProps {
+  onOpenThread?: (messageId: string) => void;
+}
+
+export default function MessageList({ onOpenThread }: MessageListProps) {
   const { currentChannel } = useChannelStore();
   const { messages, setMessages, addMessage, updateMessage, deleteMessage } = useMessageStore();
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const channelMessages = currentChannel ? messages[currentChannel.id] || [] : [];
 
-  const { data: messagesData } = useQuery({
+  const { data: messagesData, isLoading } = useQuery({
     queryKey: ['messages', currentChannel?.id],
     queryFn: async () => {
       if (!currentChannel) return [];
@@ -116,6 +122,18 @@ export default function MessageList() {
     socketService.emit('reaction:remove', { messageId, emoji });
   };
 
+  const handleEditMessage = (messageId: string, newContent: string) => {
+    socketService.emit('message:update', { messageId, content: newContent });
+  };
+
+  const handleDeleteMessage = (messageId: string) => {
+    socketService.emit('message:delete', { messageId });
+  };
+
+  const handleReplyToMessage = (messageId: string) => {
+    onOpenThread?.(messageId);
+  };
+
   if (!currentChannel) {
     return (
       <div className="flex-1 flex items-center justify-center text-gray-500">
@@ -124,10 +142,22 @@ export default function MessageList() {
     );
   }
 
+  if (isLoading) {
+    return (
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <MessageSkeleton />
+        <MessageSkeleton />
+        <MessageSkeleton />
+        <MessageSkeleton />
+        <MessageSkeleton />
+      </div>
+    );
+  }
+
   return (
     <div className="flex-1 overflow-y-auto p-4 space-y-4">
       {channelMessages.map((message) => (
-        <div key={message.id} className="flex gap-3 group">
+        <div key={message.id} className="flex gap-3 group relative">
           <div className="w-10 h-10 rounded-full bg-gray-300 flex-shrink-0"></div>
           <div className="flex-1 min-w-0">
             <div className="flex items-baseline gap-2">
@@ -155,6 +185,14 @@ export default function MessageList() {
                 ))}
               </div>
             )}
+            {message.replies && message.replies.length > 0 && (
+              <button
+                onClick={() => onOpenThread?.(message.id)}
+                className="text-xs text-blue-600 hover:text-blue-800 mt-1"
+              >
+                {message.replies.length} {message.replies.length === 1 ? 'reply' : 'replies'}
+              </button>
+            )}
             <MessageReactions
               messageId={message.id}
               reactions={message.reactions || []}
@@ -162,6 +200,14 @@ export default function MessageList() {
               onRemoveReaction={(emoji) => handleRemoveReaction(message.id, emoji)}
             />
           </div>
+          <MessageActions
+            messageId={message.id}
+            authorId={message.authorId}
+            content={message.content}
+            onEdit={handleEditMessage}
+            onDelete={handleDeleteMessage}
+            onReply={handleReplyToMessage}
+          />
         </div>
       ))}
       <div ref={messagesEndRef} />

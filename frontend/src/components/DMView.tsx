@@ -4,6 +4,7 @@ import { useAuthStore } from '../store/authStore';
 import { api } from '../services/api';
 import { useQuery } from '@tanstack/react-query';
 import { socketService } from '../services/socket';
+import { MessageSkeleton } from './Skeleton';
 
 export default function DMView() {
   const { currentConversation, messages, setMessages, addMessage } = useDMStore();
@@ -15,7 +16,7 @@ export default function DMView() {
     ? messages[currentConversation.id] || []
     : [];
 
-  const { data: messagesData } = useQuery({
+  const { data: messagesData, isLoading } = useQuery({
     queryKey: ['dm-messages', currentConversation?.id],
     queryFn: async () => {
       if (!currentConversation) return [];
@@ -32,6 +33,25 @@ export default function DMView() {
   }, [messagesData, currentConversation]);
 
   useEffect(() => {
+    if (!currentConversation) return;
+
+    const socket = socketService.getSocket();
+    if (!socket) return;
+
+    const handleNewDM = (data: any) => {
+      if (data.conversationId === currentConversation.id) {
+        addMessage(currentConversation.id, data.message);
+      }
+    };
+
+    socket.on('dm:new', handleNewDM);
+
+    return () => {
+      socket.off('dm:new', handleNewDM);
+    };
+  }, [currentConversation]);
+
+  useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [conversationMessages]);
 
@@ -39,16 +59,12 @@ export default function DMView() {
     e.preventDefault();
     if (!messageInput.trim() || !currentConversation) return;
 
-    try {
-      const res = await api.post(`/dm/${currentConversation.id}/messages`, {
-        content: messageInput.trim(),
-      });
+    socketService.emit('dm:send', {
+      conversationId: currentConversation.id,
+      content: messageInput.trim(),
+    });
 
-      addMessage(currentConversation.id, res.data.message);
-      setMessageInput('');
-    } catch (error) {
-      console.error('Failed to send DM:', error);
-    }
+    setMessageInput('');
   };
 
   const getConversationName = () => {
@@ -80,7 +96,15 @@ export default function DMView() {
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {conversationMessages.map((message) => {
+        {isLoading ? (
+          <>
+            <MessageSkeleton />
+            <MessageSkeleton />
+            <MessageSkeleton />
+            <MessageSkeleton />
+          </>
+        ) : (
+          conversationMessages.map((message) => {
           const isOwnMessage = message.senderId === user?.id;
           return (
             <div
@@ -108,7 +132,8 @@ export default function DMView() {
               </div>
             </div>
           );
-        })}
+        })
+        )}
         <div ref={messagesEndRef} />
       </div>
 

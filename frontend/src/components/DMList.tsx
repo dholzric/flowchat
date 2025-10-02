@@ -3,6 +3,7 @@ import { useDMStore } from '../store/dmStore';
 import { useAuthStore } from '../store/authStore';
 import { api } from '../services/api';
 import { useQuery } from '@tanstack/react-query';
+import { DMListSkeleton } from './Skeleton';
 
 interface NewDMModalProps {
   isOpen: boolean;
@@ -13,15 +14,24 @@ interface NewDMModalProps {
 function NewDMModal({ isOpen, onClose, onCreateDM }: NewDMModalProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [users, setUsers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
 
   const searchUsers = async (query: string) => {
     if (!query.trim()) {
       setUsers([]);
       return;
     }
-    // In a real app, you'd have a user search endpoint
-    // For now, this is a placeholder
-    setUsers([]);
+
+    setLoading(true);
+    try {
+      const res = await api.get(`/users/search?query=${encodeURIComponent(query)}`);
+      setUsers(res.data.users);
+    } catch (error) {
+      console.error('Failed to search users:', error);
+      setUsers([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (!isOpen) return null;
@@ -43,12 +53,18 @@ function NewDMModal({ isOpen, onClose, onCreateDM }: NewDMModalProps) {
         />
 
         <div className="space-y-2 max-h-60 overflow-y-auto">
-          {users.length === 0 && (
+          {loading && (
+            <p className="text-gray-500 text-sm text-center py-4">Searching...</p>
+          )}
+          {!loading && users.length === 0 && searchQuery.trim() && (
+            <p className="text-gray-500 text-sm text-center py-4">No users found</p>
+          )}
+          {!loading && users.length === 0 && !searchQuery.trim() && (
             <p className="text-gray-500 text-sm text-center py-4">
               Search for users to start a conversation
             </p>
           )}
-          {users.map((user) => (
+          {!loading && users.map((user) => (
             <button
               key={user.id}
               onClick={() => {
@@ -84,7 +100,7 @@ export default function DMList() {
   const { user } = useAuthStore();
   const [showNewDM, setShowNewDM] = useState(false);
 
-  const { data: conversationsData } = useQuery({
+  const { data: conversationsData, isLoading } = useQuery({
     queryKey: ['dm-conversations'],
     queryFn: async () => {
       const res = await api.get('/dm');
@@ -135,8 +151,11 @@ export default function DMList() {
         </div>
       </div>
 
-      <div className="overflow-y-auto">
-        {conversationsData?.map((conversation: any) => {
+      <div className="overflow-y-auto px-4">
+        {isLoading ? (
+          <DMListSkeleton />
+        ) : (
+          conversationsData?.map((conversation: any) => {
           const isActive = currentConversation?.id === conversation.id;
           return (
             <button
@@ -159,9 +178,10 @@ export default function DMList() {
               </div>
             </button>
           );
-        })}
+        })
+        )}
 
-        {(!conversationsData || conversationsData.length === 0) && (
+        {!isLoading && (!conversationsData || conversationsData.length === 0) && (
           <div className="px-4 py-8 text-center text-gray-400 text-sm">
             No conversations yet
           </div>
