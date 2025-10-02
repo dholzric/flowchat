@@ -103,7 +103,7 @@ export default function Sidebar() {
               <ChannelSkeleton />
             ) : (
               channelsData?.map((channel: any) => {
-                const unreadCount = 0; // TODO: Calculate unread count
+                const unreadCount = channel.unreadCount || 0;
                 return (
                   <button
                     key={channel.id}
@@ -113,7 +113,9 @@ export default function Sidebar() {
                     }}
                     className="w-full text-left px-2 py-1 rounded hover:bg-gray-800 text-sm flex items-center justify-between group"
                   >
-                    <span># {channel.name}</span>
+                    <span className={unreadCount > 0 ? 'font-bold' : ''}>
+                      # {channel.name}
+                    </span>
                     {unreadCount > 0 && (
                       <span className="bg-red-500 text-white text-xs rounded-full px-2 py-0.5 min-w-[20px] text-center">
                         {unreadCount > 99 ? '99+' : unreadCount}

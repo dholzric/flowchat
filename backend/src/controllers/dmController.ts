@@ -57,7 +57,41 @@ export const getConversations = async (req: Request, res: Response) => {
       },
     });
 
-    res.json({ conversations });
+    // Calculate unread counts for each conversation
+    const conversationsWithUnread = await Promise.all(
+      conversations.map(async (conversation) => {
+        const participant = await prisma.dMParticipant.findUnique({
+          where: {
+            userId_conversationId: {
+              userId,
+              conversationId: conversation.id,
+            },
+          },
+        });
+
+        let unreadCount = 0;
+        if (participant) {
+          unreadCount = await prisma.directMessage.count({
+            where: {
+              conversationId: conversation.id,
+              createdAt: {
+                gt: participant.lastReadAt,
+              },
+              senderId: {
+                not: userId, // Don't count own messages
+              },
+            },
+          });
+        }
+
+        return {
+          ...conversation,
+          unreadCount,
+        };
+      })
+    );
+
+    res.json({ conversations: conversationsWithUnread });
   } catch (error) {
     logger.error('Get conversations error:', error);
     res.status(500).json({ error: 'Failed to fetch conversations' });

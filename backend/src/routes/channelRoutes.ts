@@ -7,6 +7,7 @@ import {
   updateChannel,
   joinChannel,
   leaveChannel,
+  markChannelAsRead,
 } from '../controllers/channelController';
 import { authenticate } from '../middleware/auth';
 
@@ -23,5 +24,6 @@ router.get('/:channelId', authenticate, getChannel);
 router.patch('/:channelId', authenticate, updateChannel);
 router.post('/:channelId/join', authenticate, joinChannel);
 router.delete('/:channelId/leave', authenticate, leaveChannel);
+router.post('/:channelId/read', authenticate, markChannelAsRead);
 
 export default router;

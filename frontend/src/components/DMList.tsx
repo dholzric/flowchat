@@ -157,6 +157,7 @@ export default function DMList() {
         ) : (
           conversationsData?.map((conversation: any) => {
           const isActive = currentConversation?.id === conversation.id;
+          const unreadCount = conversation.unreadCount || 0;
           return (
             <button
               key={conversation.id}
@@ -168,8 +169,13 @@ export default function DMList() {
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-full bg-gray-600 flex-shrink-0"></div>
                 <div className="flex-1 min-w-0">
-                  <div className="font-medium text-sm truncate">
-                    {getConversationName(conversation)}
+                  <div className={`text-sm truncate flex items-center justify-between ${unreadCount > 0 ? 'font-bold' : 'font-medium'}`}>
+                    <span>{getConversationName(conversation)}</span>
+                    {unreadCount > 0 && (
+                      <span className="bg-red-500 text-white text-xs rounded-full px-2 py-0.5 ml-2">
+                        {unreadCount > 99 ? '99+' : unreadCount}
+                      </span>
+                    )}
                   </div>
                   <div className="text-xs text-gray-400 truncate">
                     {getLastMessage(conversation)}

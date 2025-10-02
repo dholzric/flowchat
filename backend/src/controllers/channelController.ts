@@ -146,7 +146,41 @@ export const getChannels = async (req: Request, res: Response) => {
       },
     });
 
-    res.json({ channels });
+    // Calculate unread counts for each channel
+    const channelsWithUnread = await Promise.all(
+      channels.map(async (channel) => {
+        const channelMember = await prisma.channelMember.findUnique({
+          where: {
+            userId_channelId: {
+              userId,
+              channelId: channel.id,
+            },
+          },
+        });
+
+        let unreadCount = 0;
+        if (channelMember) {
+          unreadCount = await prisma.message.count({
+            where: {
+              channelId: channel.id,
+              createdAt: {
+                gt: channelMember.lastReadAt,
+              },
+              authorId: {
+                not: userId, // Don't count own messages
+              },
+            },
+          });
+        }
+
+        return {
+          ...channel,
+          unreadCount,
+        };
+      })
+    );
+
+    res.json({ channels: channelsWithUnread });
   } catch (error) {
     logger.error('Get channels error:', error);
     res.status(500).json({ error: 'Failed to fetch channels' });
@@ -337,5 +371,30 @@ export const leaveChannel = async (req: Request, res: Response) => {
   } catch (error) {
     logger.error('Leave channel error:', error);
     res.status(500).json({ error: 'Failed to leave channel' });
+  }
+};
+
+export const markChannelAsRead = async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).userId;
+    const { channelId } = req.params;
+
+    // Update lastReadAt to current time
+    const member = await prisma.channelMember.update({
+      where: {
+        userId_channelId: {
+          userId,
+          channelId,
+        },
+      },
+      data: {
+        lastReadAt: new Date(),
+      },
+    });
+
+    res.json({ success: true, lastReadAt: member.lastReadAt });
+  } catch (error) {
+    logger.error('Mark channel as read error:', error);
+    res.status(500).json({ error: 'Failed to mark channel as read' });
   }
 };

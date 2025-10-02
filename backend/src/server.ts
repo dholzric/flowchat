@@ -16,6 +16,7 @@ import messageRoutes from './routes/messageRoutes';
 import dmRoutes from './routes/dmRoutes';
 import uploadRoutes from './routes/uploadRoutes';
 import userRoutes from './routes/userRoutes';
+import searchRoutes from './routes/searchRoutes';
 
 const app = express();
 const httpServer = createServer(app);
@@ -53,6 +54,7 @@ app.use('/api/messages', messageRoutes);
 app.use('/api/dm', dmRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/search', searchRoutes);
 
 // Serve uploaded files
 app.use('/uploads', express.static(config.uploadDir));
