@@ -260,6 +260,57 @@ export const getDMMessages = async (req: Request, res: Response) => {
   }
 };
 
+export const sendDMMessage = async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).userId;
+    const { conversationId } = req.params;
+    const { content, attachments } = req.body;
+
+    // Check if user is participant
+    const participant = await prisma.dMParticipant.findFirst({
+      where: {
+        conversationId,
+        userId,
+      },
+    });
+
+    if (!participant) {
+      return res.status(403).json({ error: 'You do not have access to this conversation' });
+    }
+
+    const message = await prisma.directMessage.create({
+      data: {
+        content,
+        senderId: userId,
+        conversationId,
+        attachments: attachments || null,
+      },
+      include: {
+        sender: {
+          select: {
+            id: true,
+            username: true,
+            firstName: true,
+            lastName: true,
+            avatar: true,
+          },
+        },
+      },
+    });
+
+    // Update conversation updatedAt
+    await prisma.dMConversation.update({
+      where: { id: conversationId },
+      data: { updatedAt: new Date() },
+    });
+
+    res.status(201).json({ message });
+  } catch (error) {
+    logger.error('Send DM message error:', error);
+    res.status(500).json({ error: 'Failed to send message' });
+  }
+};
+
 export const updateDMMessage = async (req: Request, res: Response) => {
   try {
     const userId = (req as any).userId;

@@ -1,12 +1,15 @@
 import { useState } from 'react';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import { useChannelStore } from '../store/channelStore';
+import { useDMStore } from '../store/dmStore';
 import { api } from '../services/api';
 import { useQuery } from '@tanstack/react-query';
+import DMList from './DMList';
 
 export default function Sidebar() {
   const { currentWorkspace, setCurrentWorkspace } = useWorkspaceStore();
   const { channels, setChannels, setCurrentChannel } = useChannelStore();
+  const { setCurrentConversation } = useDMStore();
   const [showCreateChannel, setShowCreateChannel] = useState(false);
   const [newChannelName, setNewChannelName] = useState('');
 
@@ -95,28 +98,30 @@ export default function Sidebar() {
           )}
 
           <div className="space-y-1">
-            {channelsData?.map((channel: any) => (
-              <button
-                key={channel.id}
-                onClick={() => setCurrentChannel(channel)}
-                className="w-full text-left px-2 py-1 rounded hover:bg-gray-800 text-sm"
-              >
-                # {channel.name}
-              </button>
-            ))}
+            {channelsData?.map((channel: any) => {
+              const unreadCount = 0; // TODO: Calculate unread count
+              return (
+                <button
+                  key={channel.id}
+                  onClick={() => {
+                    setCurrentChannel(channel);
+                    setCurrentConversation(null);
+                  }}
+                  className="w-full text-left px-2 py-1 rounded hover:bg-gray-800 text-sm flex items-center justify-between group"
+                >
+                  <span># {channel.name}</span>
+                  {unreadCount > 0 && (
+                    <span className="bg-red-500 text-white text-xs rounded-full px-2 py-0.5 min-w-[20px] text-center">
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
         </div>
 
-        <div className="p-4">
-          <h3 className="text-xs font-semibold text-gray-400 uppercase mb-2">
-            Direct Messages
-          </h3>
-          <div className="space-y-1">
-            <button className="w-full text-left px-2 py-1 rounded hover:bg-gray-800 text-sm text-gray-400">
-              + Start a conversation
-            </button>
-          </div>
-        </div>
+        <DMList />
       </div>
 
       {/* User info */}
