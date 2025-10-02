@@ -6,6 +6,15 @@ import { config } from './config/env';
 import { logger } from './config/logger';
 import { connectRedis } from './config/redis';
 import { errorHandler } from './middleware/errorHandler';
+import { initializeSocket } from './socket';
+
+// Import routes
+import authRoutes from './routes/authRoutes';
+import workspaceRoutes from './routes/workspaceRoutes';
+import channelRoutes from './routes/channelRoutes';
+import messageRoutes from './routes/messageRoutes';
+import dmRoutes from './routes/dmRoutes';
+import uploadRoutes from './routes/uploadRoutes';
 
 const app = express();
 const httpServer = createServer(app);
@@ -18,6 +27,9 @@ const io = new Server(httpServer, {
   },
 });
 
+// Initialize Socket.IO handlers
+initializeSocket(io);
+
 // Middleware
 app.use(cors({ origin: config.corsOrigin, credentials: true }));
 app.use(express.json());
@@ -28,19 +40,20 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// API routes will be added here
+// API routes
 app.get('/api', (req, res) => {
   res.json({ message: 'FlowChat API' });
 });
 
-// Socket.IO connection handling
-io.on('connection', (socket) => {
-  logger.info(`Client connected: ${socket.id}`);
+app.use('/api/auth', authRoutes);
+app.use('/api/workspaces', workspaceRoutes);
+app.use('/api/channels', channelRoutes);
+app.use('/api/messages', messageRoutes);
+app.use('/api/dm', dmRoutes);
+app.use('/api/upload', uploadRoutes);
 
-  socket.on('disconnect', () => {
-    logger.info(`Client disconnected: ${socket.id}`);
-  });
-});
+// Serve uploaded files
+app.use('/uploads', express.static(config.uploadDir));
 
 // Error handling
 app.use(errorHandler);

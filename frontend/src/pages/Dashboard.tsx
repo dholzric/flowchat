@@ -1,14 +1,47 @@
+import { useState, useEffect } from 'react';
 import { useAuthStore } from '../store/authStore';
+import { useChannelStore } from '../store/channelStore';
+import { socketService } from '../services/socket';
+import Sidebar from '../components/Sidebar';
+import MessageList from '../components/MessageList';
+import MessageInput from '../components/MessageInput';
+import CreateWorkspaceModal from '../components/CreateWorkspaceModal';
 
 export default function Dashboard() {
-  const { user, logout } = useAuthStore();
+  const { user, logout, token } = useAuthStore();
+  const { currentChannel } = useChannelStore();
+  const [showCreateWorkspace, setShowCreateWorkspace] = useState(false);
+
+  useEffect(() => {
+    if (token) {
+      socketService.connect(token);
+    }
+
+    return () => {
+      socketService.disconnect();
+    };
+  }, [token]);
 
   return (
     <div className="h-screen flex flex-col">
       {/* Header */}
       <header className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
-        <h1 className="text-xl font-bold">FlowChat</h1>
         <div className="flex items-center gap-4">
+          <h1 className="text-xl font-bold">FlowChat</h1>
+          {currentChannel && (
+            <div className="flex items-center gap-2">
+              <span className="text-gray-400">|</span>
+              <span className="font-semibold"># {currentChannel.name}</span>
+            </div>
+          )}
+        </div>
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => setShowCreateWorkspace(true)}
+            className="px-3 py-1 text-sm bg-primary text-white rounded hover:bg-primary/90"
+          >
+            + New Workspace
+          </button>
           <span className="text-sm text-gray-600">
             {user?.firstName || user?.username}
           </span>
@@ -22,28 +55,19 @@ export default function Dashboard() {
       </header>
 
       <div className="flex-1 flex overflow-hidden">
-        {/* Sidebar */}
-        <aside className="w-64 bg-gray-900 text-white p-4">
-          <div className="mb-6">
-            <h2 className="text-lg font-semibold mb-2">Workspaces</h2>
-            <p className="text-sm text-gray-400">No workspaces yet</p>
-          </div>
-          <div>
-            <h2 className="text-lg font-semibold mb-2">Channels</h2>
-            <p className="text-sm text-gray-400">No channels yet</p>
-          </div>
-        </aside>
+        <Sidebar />
 
         {/* Main content */}
         <main className="flex-1 flex flex-col bg-white">
-          <div className="flex-1 flex items-center justify-center text-gray-500">
-            <div className="text-center">
-              <h2 className="text-2xl font-bold mb-2">Welcome to FlowChat!</h2>
-              <p>Select a channel or create a workspace to get started.</p>
-            </div>
-          </div>
+          <MessageList />
+          <MessageInput />
         </main>
       </div>
+
+      <CreateWorkspaceModal
+        isOpen={showCreateWorkspace}
+        onClose={() => setShowCreateWorkspace(false)}
+      />
     </div>
   );
 }
